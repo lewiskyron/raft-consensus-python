@@ -23,12 +23,11 @@ class FollowerState:
     def reset_election_timer(self):
         if self.node.election_timer:
             self.node.election_timer.cancel()
-        self.node.election_timer = Timer(self.node.election_timeout, self.start_election())
+        self.node.election_timer = Timer(self.node.election_timeout, self.start_election)  # Remove parentheses
         self.node.election_timer.start()
 
     def start_election(self):
         logging.info(f"[Node {self.node.node_id}] No leader detected, starting election.")
-        # Transition to candidate state and initiate the election process
         self.node.become_candidate()
 
     def append_entries(self):

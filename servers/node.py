@@ -74,17 +74,23 @@ class Node:
 
     def become_follower(self):
         self.state = "Follower"
-        logging.info(f"[Node {self.node_id}] Transitioned to Follower state.")
+        if self.current_state and hasattr(self.current_state, "stop"):
+            self.current_state.stop()
         self.current_state = FollowerState(self)
+        logging.info(f"[Node {self.node_id}] Transitioned to Follower state.")
         self.current_state.initialize()
 
     def become_candidate(self):
         self.state = "Candidate"
+        if self.current_state and hasattr(self.current_state, "stop"):
+            self.current_state.stop()
         self.current_state = CandidateState(self)
-        logging.info(f"[Node{self.node_id}] Transitioned to Candidate state.")
+        logging.info(f"[Node {self.node_id}] Transitioned to Candidate state.")
 
     def become_leader(self):
-        self.state = "leader"
+        self.state = "Leader"
+        if self.current_state and hasattr(self.current_state, "stop"):
+            self.current_state.stop()
         self.current_state = LeaderState(self)
         logging.info(f"[Node {self.node_id}] Transitioned to Leader state.")
 
@@ -141,4 +147,5 @@ class Node:
         return self.current_state.append_entries()
 
     def vote_request(self):
+        logging.info(f"{self.node_id} {self.current_state}")
         return self.current_state.vote_request()

@@ -73,9 +73,21 @@ class CandidateState:
             return  # Stop election process and transition back to follower
 
     def evaluate_election_result(self):
-        """Evaluate if the node won the election or should retry after a timeout."""
         if self.node.votes > len(self.node.peers) // 2:
-            logging.info(f"[Node {self.node.node_id}] Won the election, transitioning to leader.")
+            logging.info(
+                f"[Node {self.node.node_id}] Won the election, transitioning to leader."
+            )
             self.node.become_leader()
         else:
-            logging.info(f"[Node {self.node.node_id}] Election lost, retrying after timeout.")
+            logging.info(
+                f"[Node {self.node.node_id}] Election lost, retrying after timeout."
+            )
+            # Schedule to retry election
+            self.retry_election_timer = Timer(
+                random.uniform(3, 5), self.start_election
+            )
+            self.retry_election_timer.start()
+
+    def stop(self):
+        if hasattr(self, "retry_election_timer"):
+            self.retry_election_timer.cancel()
