@@ -4,13 +4,16 @@ import time
 import requests
 import threading
 from messages.heartbeat import HeartbeatMessage
+from messages.vote_response import VoteResponseMessage
+from messages.vote_request import VoteRequestMessage
 from flask import Flask, request, jsonify
 
 
 class LeaderState:
     def __init__(self, node):
         self.node = node
-        self.heartbeat_interval = 1  # Sending heartbeats every 1 second
+        self.heartbeat_interval = 1  # Send heartbeats every 1 second
+        self.heartbeat_timer = None
         self.send_heartbeats()
 
     def start(self):
@@ -48,7 +51,31 @@ class LeaderState:
                     )
 
         # Wait for the next interval before sending more heartbeats
-        time.sleep(self.heartbeat_interval)
+        # Schedule the next heartbeat
+        self.heartbeat_timer = threading.Timer(
+            self.heartbeat_interval, self.send_heartbeats
+        )
+        self.heartbeat_timer.start()
+
+    def stop(self):
+        if self.heartbeat_timer:
+            self.heartbeat_timer.cancel()
+            self.heartbeat_timer = None
+
+    def vote_request(self):
+        data = request.get_json()
+        vote_request = VoteRequestMessage.from_dict(data)
+        if vote_request.term > self.node.current_term:
+            self.node.current_term = vote_request.term
+            self.node.become_follower()
+            return self.node.current_state.vote_request()
+        else:
+            response = VoteResponseMessage(
+                sender_id=self.node.node_id,
+                term=self.node.current_term,
+                vote_granted=False,
+            )
+            return jsonify(response.to_dict()), 200
 
 
 # after how long are the heartbeats sent
