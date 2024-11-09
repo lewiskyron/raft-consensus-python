@@ -1,0 +1,35 @@
+version: '3'
+services:
+  node1:
+    build: .
+    environment:
+      - NODE_ID=1
+      - PEERS=node2:6501,node3:6502
+    ports:
+      - "6500:5000"
+    networks:
+      - raft-network
+
+  node2:
+    build: .
+    environment:
+      - NODE_ID=2
+      - PEERS=node1:6500,node3:6502
+    ports:
+      - "6501:5000"
+    networks:
+      - raft-network
+
+  node3:
+    build: .
+    environment:
+      - NODE_ID=3
+      - PEERS=node1:6500,node2:6501 
+    ports:
+      - "6502:5000"
+    networks:
+      - raft-network
+
+networks:
+  raft-network:
+    driver: bridge
