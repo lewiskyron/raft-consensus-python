@@ -16,11 +16,9 @@ class LeaderState:
         self.heartbeat_timer = None
         self.next_index = {peer: len(self.node.message_log) for peer in self.node.peers}
         self.match_index = {peer: 0 for peer in self.node.peers}
-        self.send_heartbeats()
 
-    def start(self):
-        # Start sending heartbeats immediately
-        pass
+    def start_leader(self):
+        self.send_heartbeats()
 
     def send_heartbeats(self):
         for peer in self.node.peers:
@@ -91,7 +89,7 @@ class LeaderState:
                 "sender_id": self.node.node_id,
                 "prev_log_index": len(self.node.message_log) - 2,  # Index before new entry
                 "prev_log_term": (
-                    self.node.message_log[-2]["term"] if len(self.message_log) > 1 else -1
+                    self.node.message_log[-2]["term"] if len(self.node.message_log) > 1 else -1
                 ),
                 "entries": [self.node.message_log[-1]],  # The new entry
                 "leader_commit": self.node.commit_index,

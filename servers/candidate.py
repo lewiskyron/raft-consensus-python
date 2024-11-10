@@ -10,11 +10,9 @@ from messages.vote_response import VoteResponseMessage
 class CandidateState:
     def __init__(self, node):
         self.node = node
-        self.start_election()
-
+      
     def start(self):
-        # Election logic is initiated upon state transition
-        pass
+        self.start_election()
 
     def start_election(self):
         logging.info(f"[Node {self.node.node_id}] Starting election.")
