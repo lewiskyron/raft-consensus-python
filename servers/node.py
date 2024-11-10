@@ -96,20 +96,19 @@ class Node:
         self.current_state.initialize()
 
     def become_candidate(self):
+        logging.info(f"This is the current state: {self.current_state}")
         if self.current_state and hasattr(self.current_state, "stop"):
             self.current_state.stop()
         self.state = "Candidate"
-        logging.info(f"[Node {self.node_id}] Transitioned to Candidate state.")
         self.current_state = CandidateState(self)
+        self.current_state.start()
 
     def become_leader(self):
         if self.current_state and hasattr(self.current_state, "stop"):
             self.current_state.stop()
         self.state = "Leader"
-        logging.warning(f"{self.current_state} should be None.")
         self.current_state = LeaderState(self)
-        logging.info(f"{self.current_state} is the current state for {self.node_id}")
-        logging.info(f"[Node {self.node_id}] Transitioned to Leader state.")
+        self.current_state.start_leader()
 
     def receive_message(self):
         """
