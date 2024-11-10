@@ -88,6 +88,7 @@ class CandidateState:
             )
             self.retry_election_timer.start()
 
-    def stop(self):
+    def stop_candidate_state(self):
+        self.node.current_state =  None
         if hasattr(self, "retry_election_timer"):
             self.retry_election_timer.cancel()

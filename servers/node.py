@@ -48,13 +48,19 @@ class Node:
         )
         self.app.add_url_rule("/state", "get_state", self.get_state, methods=["GET"])
 
-        # Define API endpoints
         self.app.add_url_rule(
             "/append_entries", "append_entries", self.append_entries, methods=["POST"]
         )
 
         self.app.add_url_rule(
             "/vote_request", "vote_request", self.vote_request, methods=["POST"]
+        )
+
+        self.app.add_url_rule("/shutdown", "shutdown", self.shutdown, methods=["POST"])
+
+        # handles client requests
+        self.app.add_url_rule(
+            "/client_request", "client_request", self.client_request, methods=["POST"]
         )
 
     def initialize(self):
@@ -64,6 +70,15 @@ class Node:
         threading.Thread(target=self.run_flask_server, args=(port,)).start()
         time.sleep(1)
         self.initialize()
+
+    def shutdown(self):
+        """Endpoint to shut down the node."""
+        func = request.environ.get('werkzeug.server.shutdown')
+        if func is None:
+            raise RuntimeError('Not running with the Werkzeug Server')
+        logging.info(f"[Node {self.node_id}] Shutting down.")
+        func()
+        return jsonify({"status": "Node is shutting down"}), 200
 
     def run_flask_server(self, port):
         try:
@@ -75,7 +90,7 @@ class Node:
     def become_follower(self):
         self.state = "Follower"
         if self.current_state and hasattr(self.current_state, "stop"):
-            self.current_state.stop()
+            self.current_state.stop_follower_state()
         self.current_state = FollowerState(self)
         logging.info(f"[Node {self.node_id}] Transitioned to Follower state.")
         self.current_state.initialize()
@@ -83,16 +98,16 @@ class Node:
     def become_candidate(self):
         self.state = "Candidate"
         if self.current_state and hasattr(self.current_state, "stop"):
-            self.current_state.stop()
-        self.current_state = CandidateState(self)
+            self.current_state.stop_candidate_state()
         logging.info(f"[Node {self.node_id}] Transitioned to Candidate state.")
+        self.current_state = CandidateState(self)
 
     def become_leader(self):
         self.state = "Leader"
         if self.current_state and hasattr(self.current_state, "stop"):
-            self.current_state.stop()
-        self.current_state = LeaderState(self)
+            self.current_state.stop_leader_state()
         logging.info(f"[Node {self.node_id}] Transitioned to Leader state.")
+        self.current_state = LeaderState(self)
 
     def receive_message(self):
         """
@@ -149,3 +164,27 @@ class Node:
     def vote_request(self):
         logging.info(f"{self.node_id} {self.current_state}")
         return self.current_state.vote_request()
+
+    def process_client_request(self,message):
+        self.current_state.send_append_entries_to_followers(message)
+
+    # we can move this to the leader state
+    def client_request(self):
+        data = request.get_json()
+        message = data.get('message')
+        logging.warning(f"{self.node_id} received a client request")
+        logging.warning(f"{self.current_state} for {self.node_id}")
+        logging.warning(f"{self.state} for {self.node_id}")
+        if self.state != 'Leader' or not isinstance(self.current_state, LeaderState):
+            # Inform the client about the leader's address if known
+            if hasattr(self, 'leader_id') and self.leader_id:
+                leader_peer = next((peer for peer in self.peers if peer.startswith(f'node{self.leader_id}:')), None)
+                if leader_peer:
+                    host, port = leader_peer.split(':')
+                    leader_address = f'http://{host}:5000'  # Adjust the port if necessary
+                    return jsonify({'error': 'Not the leader', 'leader': leader_address}), 400
+            return jsonify({'error': 'Not the leader, leader unknown'}), 400
+        else:
+            # Process the message and replicate it to followers
+            self.process_client_request(message)
+            return jsonify({'status': 'Message received and replicated'}), 200

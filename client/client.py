@@ -1,1 +1,103 @@
-# Code that interacts with the leader to issue commands, such as setting or querying the current state. This can be expanded later to support more sophisticated interactions.
+from flask import Flask, render_template, request, redirect, url_for
+import requests
+
+app = Flask(__name__)
+
+# List of node addresses
+nodes = [
+    {"id": "1", "address": "http://localhost:6500"},
+    {"id": "2", "address": "http://localhost:6501"},
+    {"id": "3", "address": "http://localhost:6502"},
+]
+
+leader_address = None  # Global variable to store the current leader address
+
+
+def find_leader():
+    """
+    Queries each node to determine the current leader.
+    Returns the leader's address if found, else None.
+    """
+    global leader_address
+    for node in nodes:
+        try:
+            response = requests.get(f"{node['address']}/state", timeout=2)
+            if response.status_code == 200:
+                data = response.json()
+                if data["state"] == "Leader":
+                    leader_address = node["address"]
+                    return leader_address
+        except requests.exceptions.RequestException:
+            continue  # Try the next node if one is unresponsive
+    leader_address = None
+    return None
+
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    global leader_address
+    if request.method == "POST":
+        message = request.form.get("message")
+
+        # Step 1: Ensure we have the current leader's address
+        if leader_address is None:
+            leader_address = find_leader()
+
+        # Step 2: Attempt to send the message to the leader
+        if leader_address:
+            try:
+                response = requests.post(
+                    f"{leader_address}/client_request",
+                    json={"message": message},
+                    timeout=2,
+                )
+                if response.status_code == 200:
+                    return render_template("index.html", success=True)
+                elif response.status_code == 400:
+                    # If the response indicates a different leader, update and retry
+                    data = response.json()
+                    if "leader" in data:
+                        leader_address = data["leader"]
+                        response = requests.post(
+                            f"{leader_address}/client_request",
+                            json={"message": message},
+                            timeout=2,
+                        )
+                        if response.status_code == 200:
+                            return render_template("index.html", success=True)
+            except requests.exceptions.RequestException:
+                # If the leader didn't respond, try to find a new leader and resend
+                leader_address = find_leader()
+                if leader_address:
+                    try:
+                        response = requests.post(
+                            f"{leader_address}/client_request",
+                            json={"message": message},
+                            timeout=2,
+                        )
+                        if response.status_code == 200:
+                            return render_template("index.html", success=True)
+                    except requests.exceptions.RequestException:
+                        pass  # Leader still unresponsive
+        # If we can't reach a leader, return an error
+        return render_template(
+            "index.html", error="Could not send message to any leader."
+        )
+    return render_template("index.html")
+
+
+@app.route("/kill_node/<node_id>", methods=["POST"])
+def kill_node(node_id):
+    node = next((node for node in nodes if node["id"] == node_id), None)
+    if node:
+        try:
+            response = requests.post(f"{node['address']}/shutdown", timeout=2)
+            if response.status_code == 200:
+                return redirect(url_for("index"))
+        except requests.exceptions.RequestException:
+            pass  # Node might already be down
+    return redirect(url_for("index"))
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
