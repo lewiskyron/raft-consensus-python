@@ -88,26 +88,28 @@ class Node:
             logging.error(f"Server error: {e}")
 
     def become_follower(self):
-        self.state = "Follower"
         if self.current_state and hasattr(self.current_state, "stop"):
-            self.current_state.stop_follower_state()
+            self.current_state.stop()
+        self.state = "Follower"
         self.current_state = FollowerState(self)
         logging.info(f"[Node {self.node_id}] Transitioned to Follower state.")
         self.current_state.initialize()
 
     def become_candidate(self):
-        self.state = "Candidate"
         if self.current_state and hasattr(self.current_state, "stop"):
-            self.current_state.stop_candidate_state()
+            self.current_state.stop()
+        self.state = "Candidate"
         logging.info(f"[Node {self.node_id}] Transitioned to Candidate state.")
         self.current_state = CandidateState(self)
 
     def become_leader(self):
-        self.state = "Leader"
         if self.current_state and hasattr(self.current_state, "stop"):
-            self.current_state.stop_leader_state()
-        logging.info(f"[Node {self.node_id}] Transitioned to Leader state.")
+            self.current_state.stop()
+        self.state = "Leader"
+        logging.warning(f"{self.current_state} should be None.")
         self.current_state = LeaderState(self)
+        logging.info(f"{self.current_state} is the current state for {self.node_id}")
+        logging.info(f"[Node {self.node_id}] Transitioned to Leader state.")
 
     def receive_message(self):
         """
@@ -162,7 +164,6 @@ class Node:
         return self.current_state.append_entries()
 
     def vote_request(self):
-        logging.info(f"{self.node_id} {self.current_state}")
         return self.current_state.vote_request()
 
     def process_client_request(self,message):

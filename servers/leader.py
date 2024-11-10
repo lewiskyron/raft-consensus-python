@@ -117,7 +117,7 @@ class LeaderState:
                     f"[Node {self.node.node_id}] Exception when replicating to {peer}."
                 )
 
-    def stop_leader_state(self):
+    def stop(self):
         if self.heartbeat_timer:
             self.heartbeat_timer.cancel()
             self.heartbeat_timer = None

@@ -17,7 +17,7 @@ class FollowerState:
         # No additional action needed when starting as a follower
         pass
 
-    def stop_follower_state(self):
+    def stop(self):
         # Stop election timer or other tasks specific to follower state
         if self.node.election_timer:
             self.node.election_timer.cancel()

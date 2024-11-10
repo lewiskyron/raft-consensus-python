@@ -3,7 +3,6 @@ import logging
 import requests
 from threading import Timer
 import random
-from servers.leader import LeaderState
 from messages.vote_request import VoteRequestMessage
 from messages.vote_response import VoteResponseMessage
 
@@ -88,7 +87,7 @@ class CandidateState:
             )
             self.retry_election_timer.start()
 
-    def stop_candidate_state(self):
+    def stop(self):
         self.node.current_state =  None
         if hasattr(self, "retry_election_timer"):
             self.retry_election_timer.cancel()
