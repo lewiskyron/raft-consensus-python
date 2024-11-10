@@ -17,6 +17,12 @@ class FollowerState:
         # No additional action needed when starting as a follower
         pass
 
+    def stop_follower_state(self):
+        # Stop election timer or other tasks specific to follower state
+        if self.node.election_timer:
+            self.node.election_timer.cancel()
+        logging.info(f"[Node {self.node.node_id}] Stopped Follower state.")
+
     def initialize(self):
         self.reset_election_timer()
 
@@ -31,9 +37,6 @@ class FollowerState:
         self.node.become_candidate()
 
     def append_entries(self):
-        """
-        Endpoint to handle AppendEntries RPC (Heartbeat) from the leader.
-        """
         data = request.get_json()
         heartbeat = HeartbeatMessage.from_dict(data)
 
@@ -41,16 +44,42 @@ class FollowerState:
         if heartbeat.term < self.node.current_term:
             return jsonify({"success": False, "reason": "Outdated term"}), 200
 
-        # Update current term if heartbeat term is higher - check if this is the correct implementation !!!!
+        # Update current term if heartbeat term is higher
         if heartbeat.term > self.node.current_term:
             self.node.current_term = heartbeat.term
             self.node.voted_for = None  # Reset voted_for when term changes
 
+        # Record the leader ID
+        self.node.leader_id = heartbeat.sender_id
+
         # Reset election timer upon receiving a valid heartbeat
-        logging.info(
-            f"[Node {self.node.node_id}] Received heartbeat from leader {heartbeat.sender_id}."
-        )
-        self.reset_election_timer()  # Reset election timer upon receiving heartbeat
+        logging.info(f"[Node {self.node.node_id}] Received heartbeat from leader {heartbeat.sender_id}.")
+        self.reset_election_timer()
+
+        # Append any new entries
+        entries = data.get('entries', [])
+        prev_log_index = data.get('prev_log_index', -1)
+        prev_log_term = data.get('prev_log_term', -1)
+
+        # Check if log is consistent
+        if prev_log_index >= 0 and len(self.node.message_log) > prev_log_index:
+            if self.node.message_log[prev_log_index]['term'] != prev_log_term:
+                # Log inconsistency, return false
+                return jsonify({"success": False, "reason": "Log inconsistency"}), 200
+        elif prev_log_index >= 0:
+            # Prev log index is beyond current log, return false
+            return jsonify({"success": False, "reason": "Log inconsistency"}), 200
+
+        # Append new entries
+        if entries:
+            # Remove conflicting entries and append new ones
+            self.node.message_log = self.node.message_log[:prev_log_index+1]
+            self.node.message_log.extend(entries)
+
+        # Update commit index
+        leader_commit = data.get('leader_commit', self.node.commit_index)
+        if leader_commit > self.node.commit_index:
+            self.node.commit_index = min(leader_commit, len(self.node.message_log) - 1)
 
         # Respond with success
         return jsonify({"success": True}), 200

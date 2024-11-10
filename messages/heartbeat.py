@@ -3,7 +3,7 @@ from messages.base_message import BaseMessage
 
 
 class HeartbeatMessage(BaseMessage):
-    def __init__(self, sender_id, term, prev_log_index, prev_log_term, leader_commit):
+    def __init__(self, sender_id, term, prev_log_index, prev_log_term, leader_commit, entries = None):
         """
         Initialize a heartbeat message (which is an empty AppendEntries RPC) from the leader.
 
@@ -14,7 +14,8 @@ class HeartbeatMessage(BaseMessage):
         - prev_log_term (int): The term of the previous log entry.
         - leader_commit (int): The leader's commit index, which is the highest log entry known to be committed.
         """
-        super().__init__(sender_id, term)
+        super().__init__(term, sender_id)
         self.prev_log_index = prev_log_index
         self.prev_log_term = prev_log_term
         self.leader_commit = leader_commit
+        self.entries = entries or []
