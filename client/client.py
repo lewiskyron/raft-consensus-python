@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 import requests
 
 app = Flask(__name__)
@@ -91,12 +91,21 @@ def kill_node(node_id):
     node = next((node for node in nodes if node["id"] == node_id), None)
     if node:
         try:
-            response = requests.post(f"{node['address']}/shutdown", timeout=2)
+            duration = 30  # Set default duration to 30 seconds
+            response = requests.post(
+                f"{node['address']}/shutdown", json={"duration": duration}, timeout=2
+            )
             if response.status_code == 200:
-                return redirect(url_for("index"))
-        except requests.exceptions.RequestException:
-            pass  # Node might already be down
-    return redirect(url_for("index"))
+                return render_template(
+                    "index.html",
+                    success=True,
+                    message=f"Node {node_id} shutdown initiated for {duration} seconds",
+                )
+        except requests.exceptions.RequestException as e:
+            return render_template(
+                "index.html", error=f"Failed to shutdown node {node_id}: {str(e)}"
+            )
+    return render_template("index.html", error=f"Node {node_id} not found")
 
 
 if __name__ == "__main__":
