@@ -3,13 +3,16 @@ from flask import Flask, request, jsonify
 import requests
 import threading
 import time
-import os 
+import os
+import signal
+import sys
 import logging
 import random
 from servers.follower import FollowerState
 from servers.candidate import CandidateState
 from servers.leader import LeaderState
 from threading import Timer
+import docker
 
 
 logging.basicConfig(
@@ -33,6 +36,8 @@ class Node:
         self.current_term = 0
         self.commit_index = 0
         self.current_state = None
+        self.docker_client = docker.from_env()
+        self.container_name = f"raft-consensus-python-node{node_id}-1"
 
         # Define API endpoints
         self.app.add_url_rule(
@@ -72,13 +77,42 @@ class Node:
         self.initialize()
 
     def shutdown(self):
-        """Endpoint to shut down the node."""
-        func = request.environ.get('werkzeug.server.shutdown')
-        if func is None:
-            raise RuntimeError('Not running with the Werkzeug Server')
-        logging.info(f"[Node {self.node_id}] Shutting down.")
-        func()
-        return jsonify({"status": "Node is shutting down"}), 200
+        """Endpoint to shut down the node for a specified duration."""
+        try:
+            duration = 30  # Default to 30 seconds
+
+            logging.info(
+                f"[Node {self.node_id}] Shutdown requested for {duration} seconds."
+            )
+
+            def delayed_restart():
+                try:
+                    container = self.docker_client.containers.get(self.container_name)
+                    container.stop()
+                    logging.info(f"[Node {self.node_id}] Container stopped.")
+                    time.sleep(duration)
+                    container.start()
+                    logging.info(
+                        f"[Node {self.node_id}] Container restarted after {duration} seconds."
+                    )
+                except docker.errors.NotFound:
+                    logging.error(
+                        f"[Node {self.node_id}] Container not found: {self.container_name}"
+                    )
+                except Exception as e:
+                    logging.error(
+                        f"[Node {self.node_id}] Error during restart: {str(e)}"
+                    )
+
+            threading.Thread(target=delayed_restart).start()
+
+            return (
+                jsonify({"status": f"Node shutdown initiated for {duration} seconds"}),
+                200,
+            )
+        except Exception as e:
+            logging.error(f"[Node {self.node_id}] Error during shutdown: {str(e)}")
+            return jsonify({"error": str(e)}), 500
 
     def run_flask_server(self, port):
         try:
@@ -96,7 +130,6 @@ class Node:
         self.current_state.initialize()
 
     def become_candidate(self):
-        logging.info(f"This is the current state: {self.current_state}")
         if self.current_state and hasattr(self.current_state, "stop"):
             self.current_state.stop()
         self.state = "Candidate"

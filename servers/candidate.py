@@ -34,7 +34,7 @@ class CandidateState:
         """Create a VoteRequestMessage, send it to all peers, and delegate response processing."""
         # Create VoteRequestMessage based on the last log index and term
         last_log_index = len(self.node.message_log) - 1 if len(self.node.message_log) > 0 else -1
-        last_log_term = self.node.message_log[last_log_index].term if last_log_index >= 0 else -1
+        last_log_term = self.node.message_log[last_log_index]["term"] if last_log_index >= 0 else -1
 
         vote_request = VoteRequestMessage(
             sender_id=self.node.node_id,
