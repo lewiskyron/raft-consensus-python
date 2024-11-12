@@ -91,6 +91,33 @@ To run the client program run:
 python client.py
 ```
 
+### Key Features of Raft Consensus Protocol Implementation
+
+1. **Cluster Simulation with Docker**: 
+   Docker containers simulate a cluster of nodes, establishing internal networking for node communication.
+
+2. **Node Initialization & Election**:
+
+3. **Leader-Follower Architecture**:
+   - Leader node sends heartbeats to followers, maintaining synchronization and preventing split votes.
+   - Follower nodes reset election timeouts on receiving heartbeats.
+
+4. **Client and Cluster Interaction**:
+   - Client requests directed to the leader, which updates followers upon log commit.
+   - Transparent leader re-assignment if leader node changes.
+   - Dynamic re-routing of client requests maintains consistent user experience.
+
+5. **Log Reconciliation**:
+   - **Term Validation**: Followers accept leader updates only if the term is current.
+   - **Log Integrity Checks**: Followers verify logs with the leader to identify inconsistencies.
+   - **Conflict Resolution**: Conflicting log entries are removed and replaced with leader’s entries.
+   - **Commit Index Synchronization**: Followers align commit indexes with the leader to confirm identical logs.
+
+6. **Fault Tolerance**:
+   - Handles leader failures with automatic re-elections.
+   - Client operations uninterrupted through leader reassignment and transparent redirection.
+
+
 
 ## Protocol Analysis and Documentation
 
@@ -112,8 +139,8 @@ With each heartbeat, the follower nodes verify the `term` value to ensure it ali
 Referencing our Leader-Follower Architecture, the protocol also includes a client that can send messages to the cluster. In the client UI, once you input a message into the form, the request is sent to the leader node. The leader node appends this message to its logs and propagates it to the replica nodes. When the leader receives acknowledgments from a majority of replicas, it commits the message to `leader_logs.db`, introducing persistence and supporting consistency when bringing new nodes up to speed. The database integration enables us to simulate a true commit upon receiving majority acknowledgments from replica nodes.
 
 
-### Client & CLuster Interaction 
-If you kill and restart our cluster multiple times, you’ll notice that a new leader node is elected each time. To handle leader changes seamlessly, we’ve introduced functionality on the client side that dynamically re-assigns the leader. 
+#### Client & CLuster Interaction 
+If you kill and restart our cluster multiple times, you’ll notice that a new leader node is elected each time. To handle leader changes seamlessly, we’ve introduced some functionality that dynamically re-assigns the leader. 
 
 In our cluster, if the client sends a request to a node that is no longer the leader, we redirect the client requests to the leader node within the cluster and send back the new address to the client for future requests. This allows the client to continue operating as if interacting with a single, stable endpoint, regardless of changes in the leader node . 
 
@@ -148,7 +175,7 @@ In Raft, log reconciliation ensures consistency across nodes by maintaining iden
 This approach guarantees that each follower has an identical log to the leader, resolving any inconsistencies as entries are appended. The follower’s log is thus consistently reconciled to reflect the leader’s log, ensuring a uniform state across the cluster.
 
 
-#### Protocol Shortcomings
+### Protocol Shortcomings
 - **Node Resilience**: Once a node goes down, it does not automatically restart. Despite configuring Docker for automatic restarts, seamless respawning remains an issue. Enabling this feature would be a valuable enhancement, allowing us to observe real-time log reconciliation when nodes reconnect.
 
 - **Log Replication and Truncation**: During log inconsistencies, our current approach truncates follower logs to match the leader, which can result in data loss if a network partition occurs and splits the cluster. This could lead to missing entries on some followers when they rejoin the cluster.
