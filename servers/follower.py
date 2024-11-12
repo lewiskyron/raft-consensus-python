@@ -1,6 +1,4 @@
 # Defines behavior specific to a follower, like receiving heartbeats and responding to vote requests.
-# follower.py
-import random
 from threading import Timer
 import logging
 from messages.heartbeat import HeartbeatMessage
