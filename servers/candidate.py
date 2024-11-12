@@ -10,7 +10,7 @@ from messages.vote_response import VoteResponseMessage
 class CandidateState:
     def __init__(self, node):
         self.node = node
-      
+
     def start(self):
         self.start_election()
 
@@ -77,13 +77,9 @@ class CandidateState:
             self.node.become_leader()
         else:
             logging.info(
-                f"[Node {self.node.node_id}] Election lost, retrying after timeout."
+                f"[Node {self.node.node_id}] Election lost, stepping down to follower."
             )
-            # Schedule to retry election
-            self.retry_election_timer = Timer(
-                random.uniform(3, 5), self.start_election
-            )
-            self.retry_election_timer.start()
+            self.node.become_follower()
 
     def stop(self):
         self.node.current_state =  None

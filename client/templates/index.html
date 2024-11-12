@@ -4,12 +4,18 @@
     <title>Raft Client</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script>
-        // JavaScript to hide the success message after 3 seconds
+        // JavaScript to hide the success and error messages after 3 seconds
         document.addEventListener("DOMContentLoaded", function() {
             const successMessage = document.getElementById("success-message");
+            const errorMessage = document.getElementById("error-message");
             if (successMessage) {
                 setTimeout(function() {
                     successMessage.style.display = "none";
+                }, 3000); // 3000 milliseconds = 3 seconds
+            }
+            if (errorMessage) {
+                setTimeout(function() {
+                    errorMessage.style.display = "none";
                 }, 3000); // 3000 milliseconds = 3 seconds
             }
         });
@@ -33,10 +39,11 @@
     {% if success %}
         <p id="success-message" class="success">Message sent successfully!</p>
     {% elif error %}
-        <p class="error">Error: {{ error }}</p>
+        <p id="error-message" class="error">Error: {{ error }}</p>
     {% endif %}
 
-    <form method="post" class="message-form">
+    <!-- Explicitly set the action to the index endpoint -->
+    <form action="{{ url_for('index') }}" method="post" class="message-form">
         <input type="text" name="message" placeholder="Enter message" required>
         <button type="submit" class="send-button">Send Message</button>
     </form>
