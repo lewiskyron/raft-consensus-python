@@ -9,9 +9,10 @@ services:
       - "6500:5000"
     networks:
       - raft-network
-    restart: unless-stopped
+    restart: always
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./disk:/app/disk 
 
   node2:
     build: .
@@ -22,9 +23,10 @@ services:
       - "6501:5000"
     networks:
       - raft-network
-    restart: unless-stopped
+    restart: always
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./disk:/app/disk 
 
   node3:
     build: .
@@ -35,9 +37,10 @@ services:
       - "6502:5000"
     networks:
       - raft-network
-    restart: unless-stopped
+    restart: always
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./disk:/app/disk 
 
 networks:
   raft-network:

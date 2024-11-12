@@ -90,11 +90,6 @@ class Node:
                     container = self.docker_client.containers.get(self.container_name)
                     container.stop()
                     logging.info(f"[Node {self.node_id}] Container stopped.")
-                    time.sleep(duration)
-                    container.start()
-                    logging.info(
-                        f"[Node {self.node_id}] Container restarted after {duration} seconds."
-                    )
                 except docker.errors.NotFound:
                     logging.error(
                         f"[Node {self.node_id}] Container not found: {self.container_name}"
