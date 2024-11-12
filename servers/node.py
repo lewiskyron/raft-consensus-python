@@ -90,14 +90,19 @@ class Node:
                     container = self.docker_client.containers.get(self.container_name)
                     container.stop()
                     logging.info(f"[Node {self.node_id}] Container stopped.")
+                    
+                    # Wait for the specified duration before restarting
+                    time.sleep(duration)
+                    
+                    container.start()
+                    logging.info(f"[Node {self.node_id}] Container restarted after {duration} seconds.")
+                    
                 except docker.errors.NotFound:
                     logging.error(
                         f"[Node {self.node_id}] Container not found: {self.container_name}"
                     )
                 except Exception as e:
-                    logging.error(
-                        f"[Node {self.node_id}] Error during restart: {str(e)}"
-                    )
+                    logging.error(f"[Node {self.node_id}] Error during shutdown/restart: {str(e)}")
 
             threading.Thread(target=delayed_restart).start()
 
@@ -129,6 +134,7 @@ class Node:
             self.current_state.stop()
         self.state = "Candidate"
         self.current_state = CandidateState(self)
+        logging.info(f"[Node {self.node_id}] Transitioned to Candidate state.")
         self.current_state.start()
 
     def become_leader(self):
@@ -136,6 +142,7 @@ class Node:
             self.current_state.stop()
         self.state = "Leader"
         self.current_state = LeaderState(self)
+        logging.info(f"[Node {self.node_id}] Transitioned to Leader state.")
         self.current_state.start_leader()
 
     def receive_message(self):
@@ -185,6 +192,9 @@ class Node:
         return jsonify({"messages": self.message_log}), 200
 
     def get_state(self):
+        """
+        Endpoint to determine the state of a Node.
+        """
         return jsonify({"state": self.state, "node_id": self.node_id}), 200
 
     def append_entries(self):
@@ -200,7 +210,7 @@ class Node:
     def client_request(self):
         data = request.get_json()
         message = data.get('message')
-        logging.info(f"{self.node_id} received a client request")
+        logging.info(f"Leader [Node{self.node_id}] received a client request")
         if self.state != 'Leader' or not isinstance(self.current_state, LeaderState):
             # Inform the client about the leader's address if known
             if hasattr(self, 'leader_id') and self.leader_id:

@@ -116,7 +116,6 @@ class LeaderState:
         )
 
         current_entry_index = len(self.node.message_log) - 1
-        logging.warning(f"[Node {self.node.node_id}] has current_entry index {current_entry_index}")
         success_count = 0
 
         # Replicate the log entry to followers
@@ -162,10 +161,9 @@ class LeaderState:
                 )
 
         # Check if the majority has acknowledged this entry
-        if success_count >= 1:
+        if success_count >= (len(self.node.peers) + 1) // 2:
             # Update commit index
             self.node.commit_index = current_entry_index
-            logging.info(f"Leader [Node {self.node.node_id}] Commit index updated to {self.node.commit_index}.")
             # Save to disk
             self.save_to_disk(self.node.message_log[current_entry_index])
 
@@ -190,7 +188,7 @@ class LeaderState:
             )
             conn.commit()
             conn.close()
-            logging.info(f"Entry successfully added to SQLite: {entry}")
+            logging.info(f"Entry successfully added to Database")
         except sqlite3.Error as e:
             logging.error(f"Failed to write to SQLite database. Error: {e}")
 

@@ -73,10 +73,9 @@ class FollowerState:
         # Append new entries
         if entries:
             # Remove conflicting entries and append new ones
-            logging.warning(f"{entries}")
             self.node.message_log = self.node.message_log[:prev_log_index+1]
             self.node.message_log.extend(entries)
-            logging.warning(
+            logging.info(
                 f"[Node {self.node.node_id}] appended entries to log. Last appended entry: {self.node.message_log[-1]}"
             )
 
