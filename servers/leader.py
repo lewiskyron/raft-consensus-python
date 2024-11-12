@@ -1,6 +1,5 @@
 # Contains the specific logic and behavior of a leader node, like sending heartbeats and handling log replication.
 import logging
-import time
 import requests
 import threading
 from messages.heartbeat import HeartbeatMessage

@@ -2,7 +2,6 @@
 import logging
 import requests
 from threading import Timer
-import random
 from messages.vote_request import VoteRequestMessage
 from messages.vote_response import VoteResponseMessage
 

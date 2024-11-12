@@ -91,6 +91,23 @@ To run the client program run:
 python client.py
 ```
 
+
+### Testing the Program.
+At this point you program should be running. Observe the logs and you should see an election has occured and the leader is sending hearbeats.
+To test the program do the following:
+1. Send a message from the client side. Observe the logs and you will see the message has been replicated and check the `leader_logs.db` inside the disk folder to see that you message has been committed. 
+2. On the client side UI kill the leader node. Observe the logs, you will notice a re-election and a new leader sending hearbeats. 
+3. To restart the previous leader node open a new terminal and run the following command:
+```bash
+docker-compose up node[id] 
+```
+for example if node1 was the leader or the node you killed you would run: 
+```bash
+docker-compose up node1 
+```
+
+You will notice that the node transitions into a follower state and starts receiving heartbeats from the current leader. 
+
 ### Key Features of Raft Consensus Protocol Implementation
 
 1. **Cluster Simulation with Docker**: 

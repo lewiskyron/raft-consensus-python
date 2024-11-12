@@ -3,9 +3,6 @@ from flask import Flask, request, jsonify
 import requests
 import threading
 import time
-import os
-import signal
-import sys
 import logging
 import random
 from servers.follower import FollowerState
