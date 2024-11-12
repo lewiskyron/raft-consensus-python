@@ -200,9 +200,7 @@ class Node:
     def client_request(self):
         data = request.get_json()
         message = data.get('message')
-        logging.warning(f"{self.node_id} received a client request")
-        logging.warning(f"{self.current_state} for {self.node_id}")
-        logging.warning(f"{self.state} for {self.node_id}")
+        logging.info(f"{self.node_id} received a client request")
         if self.state != 'Leader' or not isinstance(self.current_state, LeaderState):
             # Inform the client about the leader's address if known
             if hasattr(self, 'leader_id') and self.leader_id:

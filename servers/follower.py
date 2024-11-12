@@ -61,25 +61,32 @@ class FollowerState:
         prev_log_index = data.get('prev_log_index', -1)
         prev_log_term = data.get('prev_log_term', -1)
 
-        # Check if log is consistent
-        if prev_log_index >= 0 and len(self.node.message_log) > prev_log_index:
-            if self.node.message_log[prev_log_index]['term'] != prev_log_term:
-                # Log inconsistency, return false
-                return jsonify({"success": False, "reason": "Log inconsistency"}), 200
-        elif prev_log_index >= 0:
-            # Prev log index is beyond current log, return false
-            return jsonify({"success": False, "reason": "Log inconsistency"}), 200
+        # Case 1: `prev_log_index` is beyond the bounds of the follower's log
+        # This means the follower's log is shorter than expected, so reject the append request
+        if prev_log_index >= len(self.node.message_log):
+            return jsonify({"success": False, "reason": "Log inconsistency: missing entries"}), 200
+
+        # Case 2: `prev_log_index` is within bounds, but the term at `prev_log_index` does not match
+        if prev_log_index >= 0 and self.node.message_log[prev_log_index]['term'] != prev_log_term:
+            return jsonify({"success": False, "reason": "Log inconsistency: term mismatch"}), 200
 
         # Append new entries
         if entries:
             # Remove conflicting entries and append new ones
+            logging.warning(f"{entries}")
             self.node.message_log = self.node.message_log[:prev_log_index+1]
             self.node.message_log.extend(entries)
+            logging.warning(
+                f"[Node {self.node.node_id}] appended entries to log. Last appended entry: {self.node.message_log[-1]}"
+            )
 
         # Update commit index
         leader_commit = data.get('leader_commit', self.node.commit_index)
         if leader_commit > self.node.commit_index:
             self.node.commit_index = min(leader_commit, len(self.node.message_log) - 1)
+            logging.info(
+                f"[Node {self.node.node_id}] updated commit index to {self.node.commit_index}."
+            )
 
         # Respond with success
         return jsonify({"success": True}), 200
