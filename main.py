@@ -7,5 +7,5 @@ if __name__ == "__main__":
     port = int(os.getenv("NODE_PORT", "5000"))
 
     # Start each node as a follower
-    follower = Node(node_id, peers)
-    follower.start_node(port=5000)
+    node = Node(node_id, peers)
+    node.start_node(port=5000)

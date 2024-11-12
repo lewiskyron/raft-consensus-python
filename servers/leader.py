@@ -7,6 +7,7 @@ from messages.heartbeat import HeartbeatMessage
 from messages.vote_response import VoteResponseMessage
 from messages.vote_request import VoteRequestMessage
 from flask import Flask, request, jsonify
+import sqlite3
 
 
 class LeaderState:
@@ -16,9 +17,11 @@ class LeaderState:
         self.heartbeat_timer = None
         self.next_index = {peer: len(self.node.message_log) for peer in self.node.peers}
         self.match_index = {peer: 0 for peer in self.node.peers}
+        self.replication_threshold = 1
 
     def start_leader(self):
         self.send_heartbeats()
+        self.initialize_database()
 
     def send_heartbeats(self):
         for peer in self.node.peers:
@@ -76,9 +79,42 @@ class LeaderState:
         )
         self.heartbeat_timer.start()
 
+    def initialize_database(self):
+        """Create the logs table in the SQLite database if it doesn't exist."""
+        db_path = "/app/disk/leader_logs.db"  # Database file path
+        self.db_path = db_path  # Save the path for later use in save_to_disk
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    node_id TEXT,
+                    term INTEGER,
+                    message TEXT,
+                    commit_index INTEGER,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    leader_id TEXT
+            )
+            """
+            )
+            conn.commit()
+            conn.close()
+            logging.info("Database initialized and table created if it didn't exist.")
+        except sqlite3.Error as e:
+            logging.error(f"Failed to initialize database: {e}")
+
     def send_append_entries_to_followers(self, message):
         # Append the message to the log with the current term
-        self.node.message_log.append({"term": self.node.current_term, "message": message})
+        self.node.message_log.append(
+            {
+                "node_id": self.node.node_id,
+                "term": self.node.current_term,
+                "message": message,
+            }
+        )
+        success_count = 0
         # Replicate the log entry to followers
         for peer in self.node.peers:
             host, port = peer.split(":")
@@ -102,6 +138,7 @@ class LeaderState:
                         logging.info(
                             f"[Node {self.node.node_id}] Successfully replicated entry to {peer}."
                         )
+                        success_count += 1
                     else:
                         logging.warning(
                             f"[Node {self.node.node_id}] Failed to replicate entry to {peer}. Reason: {data.get('reason')}"
@@ -114,6 +151,35 @@ class LeaderState:
                 logging.warning(
                     f"[Node {self.node.node_id}] Exception when replicating to {peer}."
                 )
+
+        if success_count >= self.replication_threshold:
+            self.save_to_disk(self.node.message_log[-1])
+            logging.info(f"[Node {self.node.node_id}] Message saved to disk.")
+
+    def save_to_disk(self, entry):
+        """Save a log entry to the SQLite database."""
+        entry_data = {
+            "node_id": entry["node_id"],
+            "term": entry["term"],
+            "message": entry["message"],
+            "commit_index": self.node.commit_index,
+            "leader_id": self.node.node_id,
+        }
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO logs (node_id, term, message, commit_index, leader_id)
+                VALUES (:node_id, :term, :message, :commit_index, :leader_id)
+                """,
+                entry_data,
+            )
+            conn.commit()
+            conn.close()
+            logging.info(f"Entry successfully added to SQLite: {entry}")
+        except sqlite3.Error as e:
+            logging.error(f"Failed to write to SQLite database. Error: {e}")
 
     def stop(self):
         if self.heartbeat_timer:
@@ -134,7 +200,3 @@ class LeaderState:
                 vote_granted=False,
             )
             return jsonify(response.to_dict()), 200
-
-
-# after how long are the heartbeats sent
-# how do we co-ordinate the selected time with what is received by the followers
